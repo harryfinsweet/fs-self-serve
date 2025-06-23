@@ -49,6 +49,11 @@ export class SelfServe {
   }
 
   private loadCart() {
+    if (cart.value.currentStep === 5) {
+      resetCart();
+      return;
+    }
+
     const selectedServices = cart.value.selectedServices;
     const selectedPackages = cart.value.lineItems.map(
       (item) => item.servicePackage
@@ -96,10 +101,10 @@ export class SelfServe {
         this.validateStep1();
         break;
       case 2:
-        this.validateStep2(formData);
+        this.validateStep2(form, formData);
         break;
       case 3:
-        this.validateStep3();
+        this.validateStep3(form);
         break;
       case 4:
         this.validateStep4();
@@ -111,7 +116,7 @@ export class SelfServe {
     cart.value.currentStep++;
   }
 
-  private validateStep2(formData: FormData) {
+  private validateStep2(form: HTMLFormElement, formData: FormData) {
     const data = Object.fromEntries(formData) as {
       [key: string]: string;
     };
@@ -122,18 +127,39 @@ export class SelfServe {
         services.push(service);
       }
     });
-    bulkOverwriteServicesToCart(services);
-    cart.value.currentService = services[0];
-    cart.value.currentServiceIndex = 0;
-    cart.value.currentStep++;
+    const serviceError = form.querySelector(
+      selectors.formError
+    ) as HTMLDivElement;
+    if (services.length === 0) {
+      serviceError.textContent = "Please select at least one service";
+      serviceError.style.display = "block";
+    } else {
+      serviceError.style.display = "none";
+      bulkOverwriteServicesToCart(services);
+      cart.value.currentService = services[0];
+      cart.value.currentServiceIndex = 0;
+      cart.value.currentStep++;
+    }
   }
 
-  private validateStep3() {
-    cart.value.currentStep++;
+  private validateStep3(form: HTMLFormElement) {
+    const currentServiceValue = cart.value.currentService;
+    const formError = form.querySelector(selectors.formError) as HTMLDivElement;
+    formError.style.display = "none";
+    if (currentServiceValue) {
+      const selectedPackage = cart.value?.lineItems.find(
+        (item) => item.service.slug === currentServiceValue.slug
+      );
+      if (selectedPackage) {
+        cart.value.currentStep++;
+      } else {
+        formError.textContent = `Please select a package for ${currentServiceValue.name}`;
+        formError.style.display = "block";
+      }
+    }
   }
 
   private validateStep4() {
-    console.log("validateStep4");
     cart.value.currentStep++;
   }
 
@@ -308,23 +334,11 @@ export class SelfServe {
           (form as HTMLElement).style.display = "none";
         }
       });
-      if (currentStepValue === 5) {
-        setTimeout(() => {
-          resetCart();
-          //reset all the form data
-          const forms = document.querySelectorAll(selectors.formStep);
-          forms.forEach((form) => {
-            (form as HTMLFormElement).reset();
-          });
-        }, 1000);
-      }
     });
 
     this.navLinks.forEach((link: HTMLElement) => {
       link.addEventListener("click", () => {
-        console.log("link clicked", link);
         const step = link.getAttribute(attributes.navigateTo);
-        console.log("step", step);
         if (step) {
           if (parseInt(step) < cart.value.currentStep) {
             cart.value.currentStep = parseInt(step);
@@ -471,12 +485,21 @@ export class SelfServe {
         const allPackagesCards = document.querySelectorAll(
           selectors.servicePackage
         ) as NodeListOf<HTMLElement>;
+        const packagesForm = allPackagesCards[0]?.closest(
+          selectors.formStep
+        ) as HTMLFormElement;
+        const formError = packagesForm?.querySelector(
+          selectors.formError
+        ) as HTMLDivElement;
+        formError.style.display = "none";
+
         allPackagesCards.forEach((card) => {
           const packageParent = card.getAttribute(
             attributes.servicePackageParent
           );
           const isParentInSelectedServices =
             currentServiceValue.slug === packageParent;
+
           if (isParentInSelectedServices) {
             card.style.display = "block";
           } else {
@@ -489,12 +512,22 @@ export class SelfServe {
         const newButton = newButtonTemplate.cloneNode(
           true
         ) as HTMLButtonElement;
+
         if (nextService) {
           newButton.textContent = "Next Service";
           buttonParent?.appendChild(newButton);
           newButton.addEventListener("click", () => {
-            cart.value.currentServiceIndex++;
-            cart.value.currentService = nextService;
+            //check if user has selected a package for the current service
+            const selectedPackage = cart.value?.lineItems.find(
+              (item) => item.service.slug === currentServiceValue.slug
+            );
+            if (selectedPackage) {
+              cart.value.currentServiceIndex++;
+              cart.value.currentService = nextService;
+            } else {
+              formError.textContent = `Please select a package for ${currentServiceValue.name}`;
+              formError.style.display = "block";
+            }
           });
         } else {
           newButton.textContent = "Generate the contract";
@@ -542,7 +575,6 @@ export class SelfServe {
       const lineItemsListParent = list.closest(
         selectors.cartLineItemsListParent
       ) as HTMLDivElement | null;
-      console.log("lineItemsListParent", lineItemsListParent);
       list.innerHTML = "";
 
       effect(() => {
