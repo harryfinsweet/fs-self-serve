@@ -27,6 +27,7 @@ export const selectors = {
   cartLineItemName: `[${prefix}=line-item-name]`,
   cartLineItemTotal: `[${prefix}=line-item-total]`,
   cartLineItemsList: `[${prefix}=line-items-list]`,
+  cartLineItemsListParent: `[${prefix}=line-items-list-parent]`,
   cartTotal: `[${prefix}=total]`,
 
   //sidebar
@@ -36,6 +37,17 @@ export const selectors = {
   sidebarListItem: `[${prefix}=sidebar-list-item]`,
   sidebarListItemCheckbox: `[${prefix}=sidebar-list-item-checkbox]`,
   sidebarListItemTitle: `[${prefix}=sidebar-list-item-title]`,
+
+  //contract details
+  contractFormHeading: `[${prefix}=contact-details-form-heading]`,
+  submitterName: `[${prefix}=submitter-name]`,
+  submitterEmail: `[${prefix}=submitter-email]`,
+  isSubmitterAlsoSigner: `[${prefix}=is-submitter-also-signer]`,
+  seperateContactName: `[${prefix}=seperate-contact-name]`,
+  contractDetailsName: `[${prefix}=contract-details-name]`,
+  contractDetailsAddress: `[${prefix}=contract-details-address]`,
+  contractDetailsCompany: `[${prefix}=contract-details-company]`,
+  contractDetailsCompanyLegalName: `[${prefix}=contract-details-company-legal-name]`,
 
   //utils
   conditionalVisibility: `[${prefix}=conditional-visibility]`,
