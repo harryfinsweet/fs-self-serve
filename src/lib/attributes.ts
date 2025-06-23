@@ -51,6 +51,7 @@ export const selectors = {
 
   //utils
   conditionalVisibility: `[${prefix}=conditional-visibility]`,
+  formError: `[${prefix}=form-error-message]`,
 };
 
 //used to get attibute values
