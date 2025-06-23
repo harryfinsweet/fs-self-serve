@@ -1,5 +1,10 @@
 import { selectors, attributes } from "@lib/attributes";
-import { cart, bulkOverwriteServicesToCart, addLineItem } from "@/stores/cart";
+import {
+  cart,
+  bulkOverwriteServicesToCart,
+  addLineItem,
+  resetCart,
+} from "@/stores/cart";
 import type { Service, Package } from "@/stores/cart";
 import { effect } from "@vue/reactivity";
 import { gsap } from "gsap";
@@ -39,6 +44,8 @@ export class SelfServe {
     this.displayCurrentForm();
     this.renderSidebar();
     this.renderServicePackages();
+    this.addEventListners();
+    this.renderContractDetails();
   }
 
   private loadCart() {
@@ -73,33 +80,6 @@ export class SelfServe {
           input.checked = true;
         }
       }
-
-      card.addEventListener("change", (e: Event) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const value = (e.target as HTMLInputElement).value;
-        const packageParent = card.getAttribute(
-          attributes.servicePackageParent
-        );
-
-        if (packageParent) {
-          const service = this.allServices.find(
-            (service) => service.slug === packageParent
-          );
-          const packageFound = service?.packages.find(
-            (pkg) => pkg.slug === value
-          );
-          if (service && packageFound) {
-            addLineItem(service, packageFound);
-          } else {
-            console.error(
-              "service or package not found",
-              service,
-              packageFound
-            );
-          }
-        }
-      });
     });
   }
 
@@ -120,6 +100,9 @@ export class SelfServe {
         break;
       case 3:
         this.validateStep3();
+        break;
+      case 4:
+        this.validateStep4();
         break;
     }
   }
@@ -149,6 +132,11 @@ export class SelfServe {
     cart.value.currentStep++;
   }
 
+  private validateStep4() {
+    console.log("validateStep4");
+    cart.value.currentStep++;
+  }
+
   private loadAllServices() {
     const allServicesCards = document.querySelectorAll(selectors.service);
     allServicesCards.forEach((card) => {
@@ -166,7 +154,7 @@ export class SelfServe {
       this.allServices.push({
         name: serviceTitle?.textContent || "",
         description: serviceDescription?.textContent || "",
-        whatsIcluded: serviceWhatsIncluded?.textContent || "",
+        whatsIncluded: serviceWhatsIncluded?.textContent || "",
         whatsExcluded: serviceWhatsExcluded?.textContent || "",
         slug: serviceSlug || "",
         packages: [],
@@ -205,6 +193,107 @@ export class SelfServe {
     });
   }
 
+  private addEventListners() {
+    //event listners for service packages, once a package is selected, it will be added to the cart
+    const packagesCards = document.querySelectorAll(selectors.servicePackage);
+
+    packagesCards.forEach((card) => {
+      card.addEventListener("change", (e: Event) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const value = (e.target as HTMLInputElement).value;
+        const packageParent = card.getAttribute(
+          attributes.servicePackageParent
+        );
+
+        if (packageParent) {
+          const service = this.allServices.find(
+            (service) => service.slug === packageParent
+          );
+          const packageFound = service?.packages.find(
+            (pkg) => pkg.slug === value
+          );
+          if (service && packageFound) {
+            addLineItem(service, packageFound);
+          } else {
+            console.error(
+              "service or package not found",
+              service,
+              packageFound
+            );
+          }
+        }
+      });
+    });
+
+    //event listners for contract details form
+    const submitterName = document.querySelector(
+      selectors.submitterName
+    ) as HTMLInputElement;
+    const submitterEmail = document.querySelector(
+      selectors.submitterEmail
+    ) as HTMLInputElement;
+    const isSubmitterAlsoSigner = document.querySelector(
+      selectors.isSubmitterAlsoSigner
+    ) as HTMLInputElement;
+    const contractDetailsName = document.querySelector(
+      selectors.contractDetailsName
+    ) as HTMLInputElement;
+    const contractDetailsAddress = document.querySelector(
+      selectors.contractDetailsAddress
+    ) as HTMLInputElement;
+    const contractDetailsCompany = document.querySelector(
+      selectors.contractDetailsCompany
+    ) as HTMLInputElement;
+    const contractDetailsCompanyLegalName = document.querySelector(
+      selectors.contractDetailsCompanyLegalName
+    ) as HTMLInputElement;
+
+    //logic to show seperate contact name
+    isSubmitterAlsoSigner.addEventListener("change", (e: Event) => {
+      console.log("isSubmitterAlsoSigner event", e);
+      const isChecked = (e.target as HTMLInputElement).checked;
+      if (isChecked) {
+        cart.value.isSubmitterAlsoSigner = true;
+      } else {
+        cart.value.isSubmitterAlsoSigner = false;
+      }
+    });
+
+    //logic to save form data
+    submitterName.addEventListener("change", (e: Event) => {
+      e.preventDefault();
+      const nameValue = (e.target as HTMLInputElement).value;
+      cart.value.submitterDetails.name = nameValue;
+    });
+    submitterEmail.addEventListener("change", (e: Event) => {
+      e.preventDefault();
+      const emailValue = (e.target as HTMLInputElement).value;
+      cart.value.submitterDetails.email = emailValue;
+    });
+
+    contractDetailsName.addEventListener("change", (e: Event) => {
+      e.preventDefault();
+      const nameValue = (e.target as HTMLInputElement).value;
+      cart.value.contractDetails.name = nameValue;
+    });
+    contractDetailsAddress.addEventListener("change", (e: Event) => {
+      e.preventDefault();
+      const addressValue = (e.target as HTMLInputElement).value;
+      cart.value.contractDetails.address = addressValue;
+    });
+    contractDetailsCompany.addEventListener("change", (e: Event) => {
+      e.preventDefault();
+      const companyValue = (e.target as HTMLInputElement).value;
+      cart.value.contractDetails.company = companyValue;
+    });
+    contractDetailsCompanyLegalName.addEventListener("change", (e: Event) => {
+      e.preventDefault();
+      const companyLegalNameValue = (e.target as HTMLInputElement).value;
+      cart.value.contractDetails.companyLegalName = companyLegalNameValue;
+    });
+  }
+
   private displayCurrentForm() {
     effect(() => {
       const currentStepValue = cart.value.currentStep;
@@ -219,11 +308,23 @@ export class SelfServe {
           (form as HTMLElement).style.display = "none";
         }
       });
+      if (currentStepValue === 5) {
+        setTimeout(() => {
+          resetCart();
+          //reset all the form data
+          const forms = document.querySelectorAll(selectors.formStep);
+          forms.forEach((form) => {
+            (form as HTMLFormElement).reset();
+          });
+        }, 1000);
+      }
     });
 
     this.navLinks.forEach((link: HTMLElement) => {
       link.addEventListener("click", () => {
+        console.log("link clicked", link);
         const step = link.getAttribute(attributes.navigateTo);
+        console.log("step", step);
         if (step) {
           if (parseInt(step) < cart.value.currentStep) {
             cart.value.currentStep = parseInt(step);
@@ -248,6 +349,8 @@ export class SelfServe {
       selectors.conditionalVisibility
     ) as NodeListOf<HTMLElement>;
 
+    //rendering sidebar step navigation
+
     effect(() => {
       const currentStepValue = cart.value.currentStep;
       this.navLinks.forEach((link: HTMLElement) => {
@@ -255,7 +358,7 @@ export class SelfServe {
         const checkbox = link.querySelector(
           selectors.sidebarLinkCheckbox
         ) as HTMLDivElement;
-        if (linkNavigateStep) {
+        if (linkNavigateStep && checkbox) {
           if (parseInt(linkNavigateStep) === currentStepValue) {
             link.classList.remove("is-disabled");
           } else {
@@ -283,44 +386,47 @@ export class SelfServe {
       });
     });
 
+    //rendering sidebar services list accordion
+
     effect(() => {
       if (cart.value) {
         const selectedServices = cart.value.selectedServices;
         if (selectedServices.length > 0) {
           sideBarLists.forEach((list) => {
             list.innerHTML = "";
-          });
-          selectedServices.forEach((service) => {
-            const newListItem = listItemTemplate.cloneNode(true) as HTMLElement;
-            const checkbox = newListItem.querySelector(
-              selectors.sidebarListItemCheckbox
-            ) as HTMLDivElement;
-            const title = newListItem.querySelector(
-              selectors.sidebarListItemTitle
-            ) as HTMLDivElement;
-            const relatedLineItem = cart.value?.lineItems.filter(
-              (item) => item.service.slug === service.slug
-            )[0];
+            selectedServices.forEach((service) => {
+              const newListItem = listItemTemplate.cloneNode(
+                true
+              ) as HTMLElement;
+              const checkbox = newListItem.querySelector(
+                selectors.sidebarListItemCheckbox
+              ) as HTMLDivElement;
+              const title = newListItem.querySelector(
+                selectors.sidebarListItemTitle
+              ) as HTMLDivElement;
+              const relatedLineItem = cart.value?.lineItems.filter(
+                (item) => item.service.slug === service.slug
+              )[0];
 
-            title.textContent = service.name;
-            newListItem.setAttribute(
-              "data-fs-navigate-to-service",
-              service.slug
-            );
-            newListItem.addEventListener("click", () => {
-              cart.value.currentService = service;
-              cart.value.currentServiceIndex =
-                cart.value?.selectedServices.indexOf(service) || 0;
+              title.textContent = service.name;
+              newListItem.setAttribute(
+                "data-fs-navigate-to-service",
+                service.slug
+              );
+              list.appendChild(newListItem);
+              if (relatedLineItem?.servicePackage) {
+                checkbox.style.opacity = "1";
+                newListItem.addEventListener("click", () => {
+                  cart.value.currentStep = 3;
+                  cart.value.currentService = service;
+                  cart.value.currentServiceIndex =
+                    cart.value?.selectedServices.indexOf(service) || 0;
+                });
+              } else {
+                checkbox.style.opacity = "0";
+                newListItem.style.cursor = "not-allowed";
+              }
             });
-            sideBarLists.forEach((list) => {
-              const clonedItem = newListItem.cloneNode(true) as HTMLElement;
-              list.appendChild(clonedItem);
-            });
-            if (relatedLineItem?.servicePackage) {
-              checkbox.style.opacity = "1";
-            } else {
-              checkbox.style.opacity = "0";
-            }
           });
         }
       }
@@ -328,6 +434,8 @@ export class SelfServe {
   }
 
   private renderServicePackages() {
+    //rendering select packages page
+
     const buttonChooseNextService = document.querySelector(
       selectors.buttonChooseNextService
     ) as HTMLButtonElement;
@@ -414,76 +522,158 @@ export class SelfServe {
         currentServiceName.textContent = currentServiceValue.name;
         currentServiceDescription.textContent = currentServiceValue.description;
         currentServiceWhatsIncluded.textContent =
-          currentServiceValue.whatsIcluded;
+          currentServiceValue.whatsIncluded;
         currentServiceWhatsExcluded.textContent =
           currentServiceValue.whatsExcluded;
       }
     });
 
-    const lineItemsList = document.querySelector(
+    const lineItemsLists = document.querySelectorAll(
       selectors.cartLineItemsList
-    ) as HTMLDivElement;
-    const lineItemTemplate = document.querySelector(
-      selectors.cartLineItem
-    ) as HTMLDivElement;
-    const lineItemTemplateClone = lineItemTemplate.cloneNode(
-      true
-    ) as HTMLDivElement;
-    const cartTotal = document.querySelector(
+    ) as NodeListOf<HTMLDivElement>;
+
+    //rendering the line items
+
+    lineItemsLists.forEach((list) => {
+      const lineItem = list.querySelector(
+        selectors.cartLineItem
+      ) as HTMLDivElement;
+      const lineItemTemplateClone = lineItem.cloneNode(true) as HTMLDivElement;
+      const lineItemsListParent = list.closest(
+        selectors.cartLineItemsListParent
+      ) as HTMLDivElement | null;
+      console.log("lineItemsListParent", lineItemsListParent);
+      list.innerHTML = "";
+
+      effect(() => {
+        if (cart.value.lineItems.length > 0) {
+          if (lineItemsListParent) {
+            lineItemsListParent.style.display = "";
+          }
+          list.innerHTML = "";
+          const lineItems = cart.value.lineItems;
+          const selectedServices = cart.value.selectedServices;
+          const sortedLineItems = selectedServices
+            .map((service) => {
+              return lineItems.find(
+                (lineItem) => lineItem.service.slug === service.slug
+              );
+            })
+            .sort((a, b) => {
+              if (a && b) {
+                const aIndex = selectedServices.indexOf(a.service);
+                const bIndex = selectedServices.indexOf(b.service);
+                return aIndex - bIndex;
+              }
+              return 0;
+            })
+            .filter((lineItem) => lineItem !== undefined);
+          sortedLineItems.forEach((lineItem) => {
+            const newLineItem = lineItemTemplateClone.cloneNode(
+              true
+            ) as HTMLDivElement;
+            list.appendChild(newLineItem);
+            const lineItemName = newLineItem.querySelector(
+              selectors.cartLineItemName
+            ) as HTMLDivElement;
+            const lineItemTotal = newLineItem.querySelector(
+              selectors.cartLineItemTotal
+            ) as HTMLDivElement;
+            if (lineItemName) {
+              lineItemName.textContent = `${lineItem.servicePackage.value} ${lineItem.servicePackage.units} of ${lineItem.service.name}`;
+            }
+            if (lineItemTotal) {
+              lineItemTotal.textContent = `$${lineItem.cost}`;
+            }
+          });
+        } else {
+          if (lineItemsListParent) {
+            lineItemsListParent.style.display = "none";
+          }
+        }
+      });
+    });
+
+    //rendering the total
+
+    const cartTotalElements = document.querySelectorAll(
       selectors.cartTotal
-    ) as HTMLDivElement;
+    ) as NodeListOf<HTMLDivElement>;
 
     effect(() => {
-      if (cart.value.lineItems.length > 0) {
-        lineItemsList.innerHTML = "";
-        const lineItems = cart.value.lineItems;
-        const selectedServices = cart.value.selectedServices;
-        const sortedLineItems = selectedServices
-          .map((service) => {
-            return lineItems.find(
-              (lineItem) => lineItem.service.slug === service.slug
-            );
-          })
-          .sort((a, b) => {
-            if (a && b) {
-              const aIndex = selectedServices.indexOf(a.service);
-              const bIndex = selectedServices.indexOf(b.service);
-              return aIndex - bIndex;
-            }
-            return 0;
-          })
-          .filter((lineItem) => lineItem !== undefined);
-        sortedLineItems.forEach((lineItem) => {
-          const newLineItem = lineItemTemplateClone.cloneNode(
-            true
-          ) as HTMLDivElement;
-          lineItemsList.appendChild(newLineItem);
-          const lineItemName = newLineItem.querySelector(
-            selectors.cartLineItemName
-          ) as HTMLDivElement;
-          const lineItemTotal = newLineItem.querySelector(
-            selectors.cartLineItemTotal
-          ) as HTMLDivElement;
-          lineItemName.textContent = `${lineItem.servicePackage.value} ${lineItem.servicePackage.units} of ${lineItem.service.name}`;
-          lineItemTotal.textContent = `$${lineItem.cost.toFixed(2)}`;
-        });
-        //use gsap to animate the total like an analog counter
-        const newTotal = cart.value.total;
-        const counterObj = { value: this.previousTotal };
+      const newTotal = cart.value.total;
+      const counterObj = { value: this.previousTotal };
 
+      cartTotalElements.forEach((total) => {
         gsap.to(counterObj, {
           value: newTotal,
           duration: 0.8,
           ease: "power2.out",
           onUpdate: () => {
-            cartTotal.textContent = `$${counterObj.value.toFixed(2)}`;
+            total.textContent = `$${counterObj.value
+              .toFixed(0)
+              .replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
           },
           onComplete: () => {
-            cartTotal.textContent = `$${newTotal.toFixed(2)}`;
+            total.textContent = `$${newTotal
+              .toFixed(0)
+              .replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
           },
         });
 
         this.previousTotal = newTotal;
+      });
+    });
+  }
+
+  private renderContractDetails() {
+    const contactFormHeading = document.querySelector(
+      selectors.contractFormHeading
+    ) as HTMLDivElement;
+    const submitterName = document.querySelector(
+      selectors.submitterName
+    ) as HTMLInputElement;
+    const submitterEmail = document.querySelector(
+      selectors.submitterEmail
+    ) as HTMLInputElement;
+    const isSubmitterAlsoSigner = document.querySelector(
+      selectors.isSubmitterAlsoSigner
+    ) as HTMLInputElement;
+    const seperateContactName = document.querySelector(
+      selectors.seperateContactName
+    ) as HTMLInputElement;
+    const contractDetailsName = document.querySelector(
+      selectors.contractDetailsName
+    ) as HTMLInputElement;
+    const contractDetailsAddress = document.querySelector(
+      selectors.contractDetailsAddress
+    ) as HTMLInputElement;
+    const contractDetailsCompany = document.querySelector(
+      selectors.contractDetailsCompany
+    ) as HTMLInputElement;
+    const contractDetailsCompanyLegalName = document.querySelector(
+      selectors.contractDetailsCompanyLegalName
+    ) as HTMLInputElement;
+
+    effect(() => {
+      submitterName.value = cart.value.submitterDetails.name;
+      submitterEmail.value = cart.value.submitterDetails.email;
+      contractDetailsName.value = cart.value.contractDetails.name;
+      contractDetailsAddress.value = cart.value.contractDetails.address;
+      contractDetailsCompany.value = cart.value.contractDetails.company;
+      contractDetailsCompanyLegalName.value =
+        cart.value.contractDetails.companyLegalName;
+      isSubmitterAlsoSigner.checked = cart.value.isSubmitterAlsoSigner;
+    });
+
+    effect(() => {
+      if (cart.value.isSubmitterAlsoSigner) {
+        seperateContactName.style.display = "none";
+        contactFormHeading.textContent = "Contract Details";
+        cart.value.contractDetails.name = cart.value.submitterDetails.name;
+      } else {
+        seperateContactName.style.display = "block";
+        contactFormHeading.textContent = "Your Details";
       }
     });
   }

@@ -1,29 +1,28 @@
 import { ref, effect } from "@vue/reactivity";
 
+const emptyCartState: Cart = {
+  lineItems: [],
+  total: 0,
+  contractDetails: {
+    name: "",
+    address: "",
+    company: "",
+    companyLegalName: "",
+  },
+  selectedServices: [],
+  submitterDetails: {
+    name: "",
+    email: "",
+  },
+  isSubmitterAlsoSigner: true,
+  currentStep: 1,
+  currentService: undefined,
+  currentServiceIndex: 0,
+  isCompleted: false,
+};
+
 const storedCart = localStorage.getItem("cart");
-const cart = ref<Cart>(
-  storedCart
-    ? JSON.parse(storedCart)
-    : {
-        lineItems: [],
-        total: 0,
-        contractDetails: {
-          name: "",
-          address: "",
-          company: "",
-          companyLegalName: "",
-        },
-        selectedServices: [],
-        submitorDetails: {
-          name: "",
-          email: "",
-        },
-        isSubmitterAlsoSigner: false,
-        currentStep: 1,
-        currentService: undefined,
-        currentServiceIndex: 0,
-      }
-);
+const cart = ref<Cart>(storedCart ? JSON.parse(storedCart) : emptyCartState);
 
 effect(() => {
   //save cart to local storage
@@ -60,16 +59,6 @@ const addServiceToCart = (service: Service) => {
   cart.value.selectedServices.push(service);
 };
 
-const removeServiceFromCart = (service: Service) => {
-  if (!cart.value) {
-    console.error("Cart not found");
-    return;
-  }
-  cart.value.selectedServices = cart.value.selectedServices.filter(
-    (s) => s !== service
-  );
-};
-
 const addLineItem = (service: Service, servicePackage: Package) => {
   if (!cart.value) {
     console.error("Cart not found");
@@ -92,23 +81,16 @@ const addLineItem = (service: Service, servicePackage: Package) => {
   });
 };
 
-const removeLineItem = (service: Service, servicePackage: Package) => {
-  if (!cart.value) {
-    console.error("Cart not found");
-    return;
-  }
-  cart.value.lineItems = cart.value.lineItems.filter(
-    (item) => item.service !== service || item.servicePackage !== servicePackage
-  );
+const resetCart = () => {
+  cart.value = emptyCartState;
 };
 
 export {
   cart,
   addLineItem,
-  removeLineItem,
   addServiceToCart,
-  removeServiceFromCart,
   bulkOverwriteServicesToCart,
+  resetCart,
 };
 
 type Cart = {
@@ -116,11 +98,12 @@ type Cart = {
   selectedServices: Service[];
   total: number;
   contractDetails: ContractDetails;
-  submitorDetails: SubmitorDetails;
+  submitterDetails: submitterDetails;
   isSubmitterAlsoSigner: boolean;
   currentStep: number;
   currentService: Service | undefined;
   currentServiceIndex: number;
+  isCompleted: boolean;
 };
 
 type LineItem = {
@@ -133,7 +116,7 @@ type LineItem = {
 export type Service = {
   name: string;
   description: string;
-  whatsIcluded: string;
+  whatsIncluded: string;
   whatsExcluded: string;
   slug: string;
   packages: Package[];
@@ -154,7 +137,7 @@ type ContractDetails = {
   companyLegalName: string;
 };
 
-type SubmitorDetails = {
+type submitterDetails = {
   name: string;
   email: string;
 };

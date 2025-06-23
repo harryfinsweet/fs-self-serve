@@ -3,7 +3,13 @@ import { defineConfig } from "vite";
 import typescript from "@rollup/plugin-typescript";
 import path from "path";
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
+  define: {
+    "process.env.NODE_ENV": JSON.stringify(
+      mode === "production" ? "production" : "development"
+    ),
+    "process.env": {},
+  },
   plugins: [
     typescript({
       declaration: true,
@@ -69,4 +75,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));
