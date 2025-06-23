@@ -1,24 +1,25 @@
 import { selectors, attributes } from "@lib/attributes";
-import { cart, bulkOverwriteServicesToCart } from "@/stores/cart";
+import { cart, bulkOverwriteServicesToCart, addLineItem } from "@/stores/cart";
 import type { Service, Package } from "@/stores/cart";
-import { ref, effect } from "@vue/reactivity";
+import { effect } from "@vue/reactivity";
+import { gsap } from "gsap";
+import { SplitText } from "gsap/SplitText";
 
-const currentStep = ref(1);
-const currentService = ref<Service | undefined>(undefined);
-const currentServiceIndex = ref(0);
-
+gsap.registerPlugin(SplitText);
 export class SelfServe {
   currentStep: number;
   allServices: Service[];
   allPackages: Package[];
   navLinks: NodeListOf<HTMLElement>;
+  previousTotal: number;
 
   constructor() {
     const allForms = document.querySelectorAll(selectors.formStep);
 
-    this.currentStep = currentStep.value;
+    this.currentStep = cart.value.currentStep;
     this.allServices = [];
     this.allPackages = [];
+    this.previousTotal = 0;
     this.navLinks = document.querySelectorAll(
       selectors.sidebarLink
     ) as NodeListOf<HTMLElement>;
@@ -33,10 +34,73 @@ export class SelfServe {
       });
     });
 
+    this.loadCart();
     this.loadAllServices();
     this.displayCurrentForm();
     this.renderSidebar();
     this.renderServicePackages();
+  }
+
+  private loadCart() {
+    const selectedServices = cart.value.selectedServices;
+    const selectedPackages = cart.value.lineItems.map(
+      (item) => item.servicePackage
+    );
+
+    const servicesCards = document.querySelectorAll(selectors.service);
+    servicesCards.forEach((card) => {
+      const input = card.querySelector("input") as HTMLInputElement;
+      const serviceSlug = input.getAttribute("name");
+      if (serviceSlug) {
+        const service = selectedServices.find(
+          (service) => service.slug === serviceSlug
+        );
+        if (service) {
+          input.checked = true;
+        }
+      }
+    });
+
+    const packagesCards = document.querySelectorAll(selectors.servicePackage);
+    packagesCards.forEach((card) => {
+      const packageName = card.getAttribute(attributes.servicePackageSlug);
+      if (packageName) {
+        const input = card.querySelector("input") as HTMLInputElement;
+        const packageFound = selectedPackages.find(
+          (pkg) => pkg.slug === packageName
+        );
+        if (packageFound) {
+          input.checked = true;
+        }
+      }
+
+      card.addEventListener("change", (e: Event) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const value = (e.target as HTMLInputElement).value;
+        const packageParent = card.getAttribute(
+          attributes.servicePackageParent
+        );
+
+        if (packageParent) {
+          const service = this.allServices.find(
+            (service) => service.slug === packageParent
+          );
+          const packageFound = service?.packages.find(
+            (pkg) => pkg.slug === value
+          );
+          if (service && packageFound) {
+            addLineItem(service, packageFound);
+          } else {
+            console.error(
+              "service or package not found",
+              service,
+              packageFound
+            );
+          }
+        }
+      });
+    });
   }
 
   private validateAndProcessForm(form: HTMLFormElement, formData: FormData) {
@@ -55,13 +119,13 @@ export class SelfServe {
         this.validateStep2(formData);
         break;
       case 3:
-        this.validateStep3(formData);
+        this.validateStep3();
         break;
     }
   }
 
   private validateStep1() {
-    currentStep.value++;
+    cart.value.currentStep++;
   }
 
   private validateStep2(formData: FormData) {
@@ -76,16 +140,13 @@ export class SelfServe {
       }
     });
     bulkOverwriteServicesToCart(services);
-    currentService.value = services[0];
-    currentServiceIndex.value = 0;
-    currentStep.value++;
+    cart.value.currentService = services[0];
+    cart.value.currentServiceIndex = 0;
+    cart.value.currentStep++;
   }
 
-  private validateStep3(formData: FormData) {
-    const data = Object.fromEntries(formData) as {
-      [key: string]: string;
-    };
-    console.log(data);
+  private validateStep3() {
+    cart.value.currentStep++;
   }
 
   private loadAllServices() {
@@ -124,26 +185,29 @@ export class SelfServe {
       const service = this.allServices.find(
         (service) => service.slug === packageParent
       );
+      const packageSlug = pkg.getAttribute(attributes.servicePackageSlug);
       if (service) {
         service.packages.push({
           name: packageName || "",
           value: parseInt(packageValue || "0"),
-          units: parseInt(packageUnits || "0"),
+          units: packageUnits || "",
           cost: parseInt(packageCost || "0"),
+          slug: packageSlug || "",
         });
       }
       this.allPackages.push({
         name: packageName || "",
         value: parseInt(packageValue || "0"),
-        units: parseInt(packageUnits || "0"),
+        units: packageUnits || "",
         cost: parseInt(packageCost || "0"),
+        slug: packageSlug || "",
       });
     });
   }
 
   private displayCurrentForm() {
     effect(() => {
-      const currentStepValue = currentStep.value;
+      const currentStepValue = cart.value.currentStep;
       const forms = document.querySelectorAll(selectors.formStep);
       forms.forEach((form) => {
         if (
@@ -161,8 +225,8 @@ export class SelfServe {
       link.addEventListener("click", () => {
         const step = link.getAttribute(attributes.navigateTo);
         if (step) {
-          if (parseInt(step) < currentStep.value) {
-            currentStep.value = parseInt(step);
+          if (parseInt(step) < cart.value.currentStep) {
+            cart.value.currentStep = parseInt(step);
           } else {
             //if step is the same as current step, do nothing
             return;
@@ -185,7 +249,7 @@ export class SelfServe {
     ) as NodeListOf<HTMLElement>;
 
     effect(() => {
-      const currentStepValue = currentStep.value;
+      const currentStepValue = cart.value.currentStep;
       this.navLinks.forEach((link: HTMLElement) => {
         const linkNavigateStep = link.getAttribute(attributes.navigateTo);
         const checkbox = link.querySelector(
@@ -244,9 +308,8 @@ export class SelfServe {
               service.slug
             );
             newListItem.addEventListener("click", () => {
-              console.log("clicked on service", service);
-              currentService.value = service;
-              currentServiceIndex.value =
+              cart.value.currentService = service;
+              cart.value.currentServiceIndex =
                 cart.value?.selectedServices.indexOf(service) || 0;
             });
             sideBarLists.forEach((list) => {
@@ -295,8 +358,8 @@ export class SelfServe {
     ) as HTMLDivElement;
 
     effect(() => {
-      if (currentService.value) {
-        const currentServiceValue = currentService.value;
+      if (cart.value.currentService) {
+        const currentServiceValue = cart.value.currentService;
         const allPackagesCards = document.querySelectorAll(
           selectors.servicePackage
         ) as NodeListOf<HTMLElement>;
@@ -313,7 +376,7 @@ export class SelfServe {
           }
         });
         let nextService =
-          cart.value?.selectedServices[currentServiceIndex.value + 1];
+          cart.value?.selectedServices[cart.value.currentServiceIndex + 1];
         buttonParent.innerHTML = "";
         const newButton = newButtonTemplate.cloneNode(
           true
@@ -322,8 +385,8 @@ export class SelfServe {
           newButton.textContent = "Next Service";
           buttonParent?.appendChild(newButton);
           newButton.addEventListener("click", () => {
-            currentServiceIndex.value++;
-            currentService.value = nextService;
+            cart.value.currentServiceIndex++;
+            cart.value.currentService = nextService;
           });
         } else {
           newButton.textContent = "Generate the contract";
@@ -336,13 +399,13 @@ export class SelfServe {
           true
         ) as HTMLButtonElement;
         pickPreviousPackageParent.appendChild(newPickPreviousPackage);
-        if (currentServiceIndex.value > 0) {
+        if (cart.value.currentServiceIndex > 0) {
           newPickPreviousPackage.style.display = "";
           newPickPreviousPackage.addEventListener("click", () => {
             const previousService =
-              cart.value?.selectedServices[currentServiceIndex.value - 1];
-            currentServiceIndex.value--;
-            currentService.value = previousService;
+              cart.value?.selectedServices[cart.value.currentServiceIndex - 1];
+            cart.value.currentServiceIndex--;
+            cart.value.currentService = previousService;
           });
         } else {
           newPickPreviousPackage.style.display = "none";
@@ -354,6 +417,73 @@ export class SelfServe {
           currentServiceValue.whatsIcluded;
         currentServiceWhatsExcluded.textContent =
           currentServiceValue.whatsExcluded;
+      }
+    });
+
+    const lineItemsList = document.querySelector(
+      selectors.cartLineItemsList
+    ) as HTMLDivElement;
+    const lineItemTemplate = document.querySelector(
+      selectors.cartLineItem
+    ) as HTMLDivElement;
+    const lineItemTemplateClone = lineItemTemplate.cloneNode(
+      true
+    ) as HTMLDivElement;
+    const cartTotal = document.querySelector(
+      selectors.cartTotal
+    ) as HTMLDivElement;
+
+    effect(() => {
+      if (cart.value.lineItems.length > 0) {
+        lineItemsList.innerHTML = "";
+        const lineItems = cart.value.lineItems;
+        const selectedServices = cart.value.selectedServices;
+        const sortedLineItems = selectedServices
+          .map((service) => {
+            return lineItems.find(
+              (lineItem) => lineItem.service.slug === service.slug
+            );
+          })
+          .sort((a, b) => {
+            if (a && b) {
+              const aIndex = selectedServices.indexOf(a.service);
+              const bIndex = selectedServices.indexOf(b.service);
+              return aIndex - bIndex;
+            }
+            return 0;
+          })
+          .filter((lineItem) => lineItem !== undefined);
+        sortedLineItems.forEach((lineItem) => {
+          const newLineItem = lineItemTemplateClone.cloneNode(
+            true
+          ) as HTMLDivElement;
+          lineItemsList.appendChild(newLineItem);
+          const lineItemName = newLineItem.querySelector(
+            selectors.cartLineItemName
+          ) as HTMLDivElement;
+          const lineItemTotal = newLineItem.querySelector(
+            selectors.cartLineItemTotal
+          ) as HTMLDivElement;
+          lineItemName.textContent = `${lineItem.servicePackage.value} ${lineItem.servicePackage.units} of ${lineItem.service.name}`;
+          lineItemTotal.textContent = `$${lineItem.cost.toFixed(2)}`;
+        });
+        //use gsap to animate the total like an analog counter
+        const newTotal = cart.value.total;
+        const counterObj = { value: this.previousTotal };
+
+        gsap.to(counterObj, {
+          value: newTotal,
+          duration: 0.8,
+          ease: "power2.out",
+          onUpdate: () => {
+            cartTotal.textContent = `$${counterObj.value.toFixed(2)}`;
+          },
+          onComplete: () => {
+            cartTotal.textContent = `$${newTotal.toFixed(2)}`;
+          },
+        });
+
+        this.previousTotal = newTotal;
       }
     });
   }

@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@rollup/plugin-typescript": "^12.1.3",
-    "@vue/reactivity": "^3.5.17"
+    "@vue/reactivity": "^3.5.17",
+    "gsap": "^3.13.0"
   }
 }

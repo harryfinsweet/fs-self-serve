@@ -22,6 +22,13 @@ export const selectors = {
   currentServiceWhatsExcluded: `[${prefix}=current-service-whats-excluded]`,
   pickPreviousPackage: `[${prefix}=pick-previous-package]`,
 
+  //cart
+  cartLineItem: `[${prefix}=line-item]`,
+  cartLineItemName: `[${prefix}=line-item-name]`,
+  cartLineItemTotal: `[${prefix}=line-item-total]`,
+  cartLineItemsList: `[${prefix}=line-items-list]`,
+  cartTotal: `[${prefix}=total]`,
+
   //sidebar
   sidebarLink: `[${prefix}=sidebar-link]`,
   sidebarLinkCheckbox: `[${prefix}=sidebar-link-checkbox]`,
@@ -42,6 +49,7 @@ export const attributes = {
   servicePackageUnits: `data-fs-service-package-units`,
   servicePackageCost: `data-fs-service-package-cost`,
   servicePackageParent: `data-fs-service-package-parent`,
+  servicePackageSlug: `data-fs-service-package-slug`,
 
   //sidebar
   navigateTo: `data-fs-navigate-to`,

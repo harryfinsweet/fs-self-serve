@@ -1,7 +1,7 @@
 import { ref, effect } from "@vue/reactivity";
 
 const storedCart = localStorage.getItem("cart");
-const cart = ref<Cart | null>(
+const cart = ref<Cart>(
   storedCart
     ? JSON.parse(storedCart)
     : {
@@ -19,17 +19,15 @@ const cart = ref<Cart | null>(
           email: "",
         },
         isSubmitterAlsoSigner: false,
+        currentStep: 1,
+        currentService: undefined,
+        currentServiceIndex: 0,
       }
 );
 
 effect(() => {
   //save cart to local storage
   localStorage.setItem("cart", JSON.stringify(cart.value));
-  //   //get cart from local storage
-  //   const storedCart = localStorage.getItem("cart");
-  //   if (storedCart) {
-  //     cart.value = JSON.parse(storedCart);
-  //   }
 
   //calculate total
   if (cart.value) {
@@ -77,6 +75,15 @@ const addLineItem = (service: Service, servicePackage: Package) => {
     console.error("Cart not found");
     return;
   }
+  const lineItemWithSameService = cart.value.lineItems.find(
+    (item) => item.service.slug === service.slug
+  );
+  if (lineItemWithSameService) {
+    //remove the line item
+    cart.value.lineItems = cart.value.lineItems.filter(
+      (item) => item.service.slug !== service.slug
+    );
+  }
   cart.value.lineItems.push({
     service,
     servicePackage,
@@ -111,6 +118,9 @@ type Cart = {
   contractDetails: ContractDetails;
   submitorDetails: SubmitorDetails;
   isSubmitterAlsoSigner: boolean;
+  currentStep: number;
+  currentService: Service | undefined;
+  currentServiceIndex: number;
 };
 
 type LineItem = {
@@ -132,8 +142,9 @@ export type Service = {
 export type Package = {
   name: string;
   value: number;
-  units: number;
+  units: string;
   cost: number;
+  slug: string;
 };
 
 type ContractDetails = {
