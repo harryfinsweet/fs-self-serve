@@ -28,7 +28,10 @@ export default defineConfig(({ mode }) => ({
   //cors durring dev
   server: {
     cors: {
-      origin: ["https://fs-self-service.webflow.io"],
+      origin: [
+        "https://fs-self-service.webflow.io",
+        "https://finsweet.webflow.io",
+      ],
       methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
     },
     allowedHosts: ["fs-search-sandbox.webflow.io", "local5173-70.localcan.dev"],
