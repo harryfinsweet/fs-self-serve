@@ -161,6 +161,20 @@ export class SelfServe {
 
   private validateStep4() {
     cart.value.currentStep++;
+    (async () => {
+      const response = await fetch(
+        `https://finsweet-intelligence.app.n8n.cloud/webhook-test/client-onboarding`,
+        {
+          method: "POST",
+          body: JSON.stringify(cart.value),
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      const data = await response.json();
+      console.log(data);
+    })();
   }
 
   private loadAllServices() {
@@ -268,6 +282,9 @@ export class SelfServe {
     const contractDetailsAddress = document.querySelector(
       selectors.contractDetailsAddress
     ) as HTMLInputElement;
+    const contractDetailsAddress2 = document.querySelector(
+      selectors.contractDetailsAddress2
+    ) as HTMLInputElement;
     const contractDetailsCompany = document.querySelector(
       selectors.contractDetailsCompany
     ) as HTMLInputElement;
@@ -307,6 +324,11 @@ export class SelfServe {
       e.preventDefault();
       const addressValue = (e.target as HTMLInputElement).value;
       cart.value.contractDetails.address = addressValue;
+    });
+    contractDetailsAddress2.addEventListener("change", (e: Event) => {
+      e.preventDefault();
+      const address2Value = (e.target as HTMLInputElement).value;
+      cart.value.contractDetails.address2 = address2Value;
     });
     contractDetailsCompany.addEventListener("change", (e: Event) => {
       e.preventDefault();
@@ -680,6 +702,9 @@ export class SelfServe {
     const contractDetailsAddress = document.querySelector(
       selectors.contractDetailsAddress
     ) as HTMLInputElement;
+    const contractDetailsAddress2 = document.querySelector(
+      selectors.contractDetailsAddress2
+    ) as HTMLInputElement;
     const contractDetailsCompany = document.querySelector(
       selectors.contractDetailsCompany
     ) as HTMLInputElement;
@@ -692,6 +717,7 @@ export class SelfServe {
       submitterEmail.value = cart.value.submitterDetails.email;
       contractDetailsName.value = cart.value.contractDetails.name;
       contractDetailsAddress.value = cart.value.contractDetails.address;
+      contractDetailsAddress2.value = cart.value.contractDetails.address2;
       contractDetailsCompany.value = cart.value.contractDetails.company;
       contractDetailsCompanyLegalName.value =
         cart.value.contractDetails.companyLegalName;

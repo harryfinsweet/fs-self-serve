@@ -46,6 +46,7 @@ export const selectors = {
   seperateContactName: `[${prefix}=seperate-contact-name]`,
   contractDetailsName: `[${prefix}=contract-details-name]`,
   contractDetailsAddress: `[${prefix}=contract-details-address]`,
+  contractDetailsAddress2: `[${prefix}=contract-details-address-2]`,
   contractDetailsCompany: `[${prefix}=contract-details-company]`,
   contractDetailsCompanyLegalName: `[${prefix}=contract-details-company-legal-name]`,
 

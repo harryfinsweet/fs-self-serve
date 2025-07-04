@@ -6,6 +6,7 @@ const emptyCartState: Cart = {
   contractDetails: {
     name: "",
     address: "",
+    address2: "",
     company: "",
     companyLegalName: "",
   },
@@ -133,6 +134,7 @@ export type Package = {
 type ContractDetails = {
   name: string;
   address: string;
+  address2: string;
   company: string;
   companyLegalName: string;
 };
